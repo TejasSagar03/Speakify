@@ -14,20 +14,30 @@ const stopBtn = document.getElementById('stopBtn');
 
 let allText = '';
 let utterance = null;
+let voicesLoaded = false;
 
-// Load available voices
+// ✅ Load voices properly for Android
 function loadVoices() {
   const voices = speechSynthesis.getVoices();
+  if (!voices.length) {
+    // Try again if voices are not ready yet
+    setTimeout(loadVoices, 250);
+    return;
+  }
+
+  voicesLoaded = true;
   voiceSelect.innerHTML = '';
   voices.forEach(v => {
     const option = document.createElement('option');
     option.value = v.name;
-    option.textContent = `${v.name} (${v.lang})`;
+    option.textContent = ${v.name} (${v.lang});
     voiceSelect.appendChild(option);
   });
 }
 
+// Trigger voice load
 speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
 
 // Extract text from PDF
 extractBtn.addEventListener('click', async () => {
@@ -58,15 +68,24 @@ speedRange.addEventListener('input', () => {
   speedValue.textContent = speedRange.value;
 });
 
-// Play speech
+// ✅ Fix: Ensure user interaction triggers playback
 playBtn.addEventListener('click', () => {
   if (!allText.trim()) return alert('Please extract text first!');
-  speechSynthesis.cancel(); // stop previous
+  if (!voicesLoaded) return alert('Voices not loaded yet. Please wait a second.');
+
+  // Cancel previous speech if any
+  speechSynthesis.cancel();
+
   utterance = new SpeechSynthesisUtterance(allText);
   utterance.rate = parseFloat(speedRange.value);
+
   const selectedVoice = speechSynthesis.getVoices().find(v => v.name === voiceSelect.value);
   if (selectedVoice) utterance.voice = selectedVoice;
-  speechSynthesis.speak(utterance);
+
+  // ✅ Fix: Delay helps Android queue audio properly
+  setTimeout(() => {
+    speechSynthesis.speak(utterance);
+  }, 200);
 });
 
 // Pause
